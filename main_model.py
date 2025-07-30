@@ -147,10 +147,12 @@ class CSDI_base(nn.Module):
         predicted = self.diffmodel(total_input, side_info, scaled_t)  # (B,K,L)
 
         # noise -> score
-        real_score = -noise/std_reshape
+        real_score = -noise/(std_reshape**2)
 
         target_mask = observed_mask - cond_mask
-        residual = (real_score - predicted) * target_mask
+        residual = (predicted - real_score) * target_mask
+        weight = std_reshape**2 
+        residual = weight* residual
         num_eval = target_mask.sum()
         loss = (residual ** 2).sum() / (num_eval if num_eval > 0 else 1)
         return loss
@@ -221,7 +223,8 @@ class CSDI_base(nn.Module):
 
         for i in range(n_samples):
             current_sample = torch.randn_like(observed_data)
-            timesteps = torch.linspace(1.0, 1e-5, self.num_steps + 1).to(self.device)
+            eps = 1e-3
+            timesteps = torch.linspace(1.0, eps, self.num_steps + 1).to(self.device)
 
             for t in range(1, len(timesteps)):
                 t_cur = torch.full((B,), timesteps[t].item(), device=self.device)
@@ -235,7 +238,6 @@ class CSDI_base(nn.Module):
                     t_cur
                 )
                 noise = torch.randn_like(current_sample)
-                eps = 1e-5
                 current_sample = current_sample + eps * score + np.sqrt(2 * eps) * noise
 
                 # ----- Predictor step: Euler–Maruyama from t to t - dt -----
@@ -248,6 +250,34 @@ class CSDI_base(nn.Module):
 
         return imputed_samples
 
+    # def impute(self, observed_data, cond_mask, side_info, n_samples):
+    #     B, K, L = observed_data.shape
+    #     imputed_samples = torch.zeros(B, n_samples, K, L).to(self.device)
+
+    #     rsde = self.sde.reverse(
+    #         score_fn=lambda x, t: self.diffmodel(
+    #             self.set_input_to_diffmodel(x, observed_data, cond_mask),
+    #             side_info,
+    #             t
+    #         ),
+    #         probability_flow=True  # 关键启用ODE流
+    #     )
+
+    #     for i in range(n_samples):
+    #         current_sample = torch.randn_like(observed_data)
+    #         timesteps = torch.linspace(1.0, 1e-3, self.num_steps + 1).to(self.device)
+
+    #         for t in range(1, len(timesteps)):
+    #             t_cur = torch.full((B,), timesteps[t].item(), device=self.device)
+    #             t_prev = torch.full((B,), timesteps[t - 1].item(), device=self.device)
+    #             dt = (t_prev[0] - t_cur[0])
+
+    #             drift, _ = rsde.sde(current_sample, t_cur)
+    #             current_sample = current_sample - drift * dt  # ODE更新无随机性
+
+    #         imputed_samples[:, i] = current_sample.detach()
+
+    #     return imputed_samples
 
     def forward(self, batch, is_train=1):
         (

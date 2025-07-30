@@ -2,9 +2,9 @@
 #type: args
 
 train:
-  epochs: 200
+  epochs: 1000
   batch_size: 16 
-  lr: 2.0e-4
+  lr: 5.0e-4
   itr_per_epoch: 1.0e+8
 
 
@@ -13,10 +13,10 @@ diffusion:
   channels: 64 
   nheads: 8
   diffusion_embedding_dim: 128
-  beta_start: 0.2
-  beta_end: 0.5
-  num_steps: 100
-  schedule: "linear"
+  beta_start: 0.1
+  beta_end: 2
+  num_steps: 50
+  schedule: "quad"
   is_linear: False
 
 model:

@@ -4,6 +4,8 @@ from torch.optim import Adam
 from tqdm import tqdm
 import pickle
 import logging
+import math
+from torch.optim.lr_scheduler import _LRScheduler
 
 def train(
     model,
@@ -17,11 +19,36 @@ def train(
     if foldername != "":
         output_path = foldername + "/model.pth"
 
-    p1 = int(0.75 * config["epochs"])
-    p2 = int(0.9 * config["epochs"])
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[p1, p2], gamma=0.1
-    )
+    # p1 = int(0.75 * config["epochs"])
+    # p2 = int(0.9 * config["epochs"])
+    # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, milestones=[p1, p2], gamma=0.1
+    # )
+    
+    
+    class WarmupCosineLR(_LRScheduler):
+        def __init__(self, optimizer, warmup_epochs, total_epochs, eta_min=0.0, last_epoch=-1):
+            self.warmup_epochs = warmup_epochs
+            self.total_epochs = total_epochs
+            self.eta_min = eta_min
+            self.base_lrs = [group['lr'] for group in optimizer.param_groups]
+            super().__init__(optimizer, last_epoch)
+
+        def get_lr(self):
+            if self.last_epoch < self.warmup_epochs:
+                # 线性 warmup
+                warmup_factor = float(self.last_epoch + 1) / float(self.warmup_epochs)
+                return [base_lr * warmup_factor for base_lr in self.base_lrs]
+            else:
+                # 余弦退火
+                progress = (self.last_epoch - self.warmup_epochs) / (self.total_epochs - self.warmup_epochs)
+                cosine_factor = 0.5 * (1.0 + math.cos(math.pi * progress))
+                return [
+                    self.eta_min + (base_lr - self.eta_min) * cosine_factor
+                    for base_lr in self.base_lrs
+                ]
+
+    lr_scheduler = WarmupCosineLR(optimizer, 5, 200, eta_min=1e-5)
 
     best_valid_loss = 1e10
     for epoch_no in range(config["epochs"]):

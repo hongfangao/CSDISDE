@@ -4,7 +4,7 @@ import datetime
 import json
 import yaml
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 from main_model import CSDI_Physio
 from dataset_physio import get_dataloader

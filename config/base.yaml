@@ -4,7 +4,7 @@
 train:
   epochs: 200
   batch_size: 16 
-  lr: 2.0e-4
+  lr: 1.0e-3
   itr_per_epoch: 1.0e+8
 
 
@@ -14,8 +14,8 @@ diffusion:
   nheads: 8
   diffusion_embedding_dim: 128
   beta_start: 0.2
-  beta_end: 2
-  num_steps: 50
+  beta_end: 1
+  num_steps: 100
   schedule: "quad"
   is_linear: False
 
